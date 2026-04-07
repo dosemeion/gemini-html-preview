@@ -70,16 +70,7 @@ function injectButton(decorationEl) {
 
 function openPreview(htmlContent) {
   try {
-    const key = 'ghp_' + Date.now();
-    chrome.storage.local.set({ [key]: htmlContent }, () => {
-      try {
-        if (chrome.runtime.lastError) {
-          console.error('[GHP] storage error:', chrome.runtime.lastError.message);
-          return;
-        }
-        window.open(chrome.runtime.getURL('preview.html') + '?key=' + key, '_blank');
-      } catch (e) { /* context invalidated in callback */ }
-    });
+    chrome.runtime.sendMessage({ type: 'openPreview', html: htmlContent });
   } catch (e) {
     alert('扩展已更新，请刷新页面后重试。');
   }
