@@ -1,67 +1,46 @@
 // Gemini HTML Preview - Background Service Worker
 
-// tabId -> downloadId
-const tabToDownload = new Map();
+// key -> html: serve pending previews via fetch interception
+const pendingHtml = new Map();
+
+// Intercept fetch requests for preview-download/* URLs
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  if (!url.pathname.startsWith('/preview-download/')) return;
+
+  const key = url.pathname.replace('/preview-download/', '');
+  const html = pendingHtml.get(key);
+  if (!html) return;
+
+  pendingHtml.delete(key);
+  event.respondWith(new Response(html, {
+    headers: { 'Content-Type': 'text/html; charset=utf-8' }
+  }));
+});
 
 function injectFixes(html) {
-  const cssOverride = `<style>
-section { opacity: 1 !important; transform: none !important; }
-</style>`;
+  const fixesCssUrl   = chrome.runtime.getURL('fixes.css');
+  const ioShimUrl     = chrome.runtime.getURL('io-shim.js');
+  const katexCssUrl   = chrome.runtime.getURL('katex.min.css');
+  const katexJsUrl    = chrome.runtime.getURL('katex.min.js');
+  const autoRenderUrl = chrome.runtime.getURL('auto-render.min.js');
+  const katexInitUrl  = chrome.runtime.getURL('katex-init.js');
 
-  const jsOverride = `<script>
-(function() {
-  var _NativeIO = window.IntersectionObserver;
-  if (!_NativeIO) return;
-  window.IntersectionObserver = function(callback, options) {
-    var io = new _NativeIO(callback, options);
-    var _observe = io.observe.bind(io);
-    io.observe = function(target) {
-      _observe(target);
-      setTimeout(function() {
-        callback([{ isIntersecting: true, target: target, intersectionRatio: 1 }], io);
-      }, 0);
-    };
-    return io;
-  };
-  window.IntersectionObserver.prototype = _NativeIO.prototype;
-})();
-<\/script>`;
+  // Remove page's own CSP meta tags so our injected resources aren't blocked
+  let result = html.replace(/<meta[^>]+http-equiv=["']Content-Security-Policy["'][^>]*>/gi, '');
 
-  const arxivFallback = `<script>
-(function() {
-  function patchImg(img) {
-    if (img._arxivPatched) return;
-    img._arxivPatched = true;
-    img.addEventListener('error', function() {
-      var url = this.src;
-      if (/arxiv\.org\/html\//.test(url)) {
-        var next = url.replace(
-          /https?:\/\/arxiv\.org\/html\/([^\/]+)\//,
-          'https://ar5iv.labs.arxiv.org/html/$1/assets/'
-        );
-        if (next !== url) this.src = next;
-      }
-    }, { once: true });
-  }
-  new MutationObserver(function(ms) {
-    ms.forEach(function(m) {
-      m.addedNodes.forEach(function(n) {
-        if (!n || n.nodeType !== 1) return;
-        if (n.tagName === 'IMG') patchImg(n);
-        else if (n.querySelectorAll) n.querySelectorAll('img').forEach(patchImg);
-      });
-    });
-  }).observe(document.documentElement, { childList: true, subtree: true });
-})();
-<\/script>`;
-
-  let result = html;
-  result = result.includes('</head>')
-    ? result.replace('</head>', cssOverride + '\n</head>')
-    : cssOverride + result;
+  // Inject into <head>: section fix CSS + IO shim (must run before page scripts)
+  const headInject = `<link rel="stylesheet" href="${fixesCssUrl}">\n<script src="${ioShimUrl}"><\/script>`;
   result = result.includes('<head>')
-    ? result.replace('<head>', '<head>\n' + jsOverride + '\n' + arxivFallback)
-    : jsOverride + arxivFallback + result;
+    ? result.replace('<head>', '<head>\n' + headInject)
+    : headInject + result;
+
+  // Inject KaTeX at end of </body> — scripts run after DOM is fully parsed
+  const katexBlock = `<link rel="stylesheet" href="${katexCssUrl}">\n<script src="${katexJsUrl}"><\/script>\n<script src="${autoRenderUrl}"><\/script>\n<script src="${katexInitUrl}"><\/script>`;
+  result = result.includes('</body>')
+    ? result.replace('</body>', katexBlock + '\n</body>')
+    : result + '\n' + katexBlock;
+
   return result;
 }
 
@@ -69,54 +48,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type !== 'openPreview') return;
 
   const processed = injectFixes(msg.html);
-  const blob = new Blob([processed], { type: 'text/html' });
-  const blobUrl = URL.createObjectURL(blob);
-  const filename = `gemini-preview/preview-${Date.now()}.html`;
+  const key = Date.now().toString();
+  pendingHtml.set(key, processed);
 
-  chrome.downloads.download({
-    url: blobUrl,
-    filename: filename,
-    saveAs: false,
-    conflictAction: 'uniquify'
-  }, (downloadId) => {
-    URL.revokeObjectURL(blobUrl);
-
-    if (chrome.runtime.lastError || downloadId === undefined) {
-      console.error('[GHP] download failed:', chrome.runtime.lastError?.message);
-      return;
-    }
-
-    // Wait for download to complete, then open the file in a new tab
-    function onDownloadChanged(delta) {
-      if (delta.id !== downloadId) return;
-      if (delta.state?.current !== 'complete') return;
-      chrome.downloads.onChanged.removeListener(onDownloadChanged);
-
-      chrome.downloads.search({ id: downloadId }, (items) => {
-        if (!items?.[0]?.filename) return;
-        const fileUrl = 'file:///' + items[0].filename.replace(/\\/g, '/');
-        chrome.tabs.create({ url: fileUrl }, (tab) => {
-          tabToDownload.set(tab.id, downloadId);
-        });
-      });
-    }
-
-    chrome.downloads.onChanged.addListener(onDownloadChanged);
-  });
+  const previewUrl = chrome.runtime.getURL(`preview-download/${key}`);
+  chrome.tabs.create({ url: previewUrl });
 
   return true;
-});
-
-// When the preview tab is closed, delete the temp file and erase download history
-chrome.tabs.onRemoved.addListener((tabId) => {
-  if (!tabToDownload.has(tabId)) return;
-  const downloadId = tabToDownload.get(tabId);
-  tabToDownload.delete(tabId);
-
-  chrome.downloads.removeFile(downloadId, () => {
-    if (chrome.runtime.lastError) {
-      console.warn('[GHP] removeFile failed:', chrome.runtime.lastError.message);
-    }
-    chrome.downloads.erase({ id: downloadId });
-  });
 });

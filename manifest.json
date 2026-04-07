@@ -3,7 +3,7 @@
   "name": "Gemini HTML Preview",
   "version": "1.1",
   "description": "在新标签页中预览 Gemini 生成的 HTML 代码",
-  "permissions": ["tabs", "storage", "downloads"],
+  "permissions": ["tabs"],
   "host_permissions": [
     "https://gemini.google.com/*",
     "https://aistudio.google.com/*"
@@ -24,7 +24,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["preview.html", "preview.js", "preview.css", "katex.min.js", "auto-render.min.js"],
+      "resources": ["katex.min.js", "katex.min.css", "katex-init.js", "auto-render.min.js", "io-shim.js", "fixes.css"],
       "matches": ["<all_urls>"]
     }
   ],
