@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Gemini HTML Preview",
+  "version": "1.0",
+  "description": "在新标签页中预览 Gemini 生成的 HTML 代码",
+  "permissions": ["tabs", "storage"],
+  "host_permissions": [
+    "https://gemini.google.com/*",
+    "https://aistudio.google.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://gemini.google.com/*",
+        "https://aistudio.google.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["preview.html", "preview.js", "preview.css", "katex.min.js", "auto-render.min.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}

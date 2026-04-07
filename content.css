@@ -1,0 +1,38 @@
+/* Gemini HTML Preview - Content Script Styles */
+
+.gemini-html-preview-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-family: 'Google Sans', sans-serif;
+  font-weight: 500;
+  color: #1a73e8;
+  background: transparent;
+  border: 1px solid #1a73e8;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  vertical-align: middle;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.gemini-html-preview-btn::before {
+  content: '⧉';
+  font-size: 13px;
+}
+
+.gemini-html-preview-btn:hover {
+  background: #1a73e8;
+  color: #fff;
+}
+
+.gemini-html-preview-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px 4px 0 0;
+}
