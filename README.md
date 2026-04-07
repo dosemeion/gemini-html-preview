@@ -1,49 +1,49 @@
-# Gemini HTML Preview
+# Gemini HTML 预览
 
-A Chrome extension that adds a **预览** button to HTML code blocks on [Gemini](https://gemini.google.com) and [AI Studio](https://aistudio.google.com), opening the generated HTML instantly in a new tab — no copy-paste, no download dialogs.
+一个 Chrome 扩展，在 [Gemini](https://gemini.google.com) 和 [AI Studio](https://aistudio.google.com) 的 HTML 代码块工具栏中添加**预览**按钮，点击后直接在新标签页中渲染生成的 HTML，无需复制粘贴，无下载弹窗。
 
-## Features
+## 功能
 
-- One-click preview of HTML code blocks
-- Renders LaTeX math formulas via KaTeX (`$$...$$`, `$...$`, `\(...\)`, `\[...\]`)
-- Fixes invisible sections caused by IntersectionObserver-based scroll animations
-- Works on both Gemini and AI Studio
+- 一键预览 HTML 代码块
+- 支持 LaTeX 数学公式渲染（`$$...$$`、`$...$`、`\(...\)`、`\[...\]`）
+- 修复因 IntersectionObserver 滚动动画导致的内容不可见问题
+- 同时支持 Gemini 和 AI Studio
 
-## How it works
+## 工作原理
 
-The extension injects a 预览 button into every HTML code block toolbar. On click, the HTML is sent to the background service worker, which:
+扩展在每个 HTML 代码块的工具栏中注入预览按钮。点击后，HTML 内容被发送至后台 Service Worker：
 
-1. Injects fix scripts (IO shim, KaTeX) into the HTML
-2. Stores the result in memory and opens a `chrome-extension://` URL
-3. The service worker intercepts the fetch for that URL and serves the HTML directly
+1. 注入修复脚本（IO shim、KaTeX 等）
+2. 将处理后的 HTML 暂存于内存，并打开一个 `chrome-extension://` URL
+3. Service Worker 拦截该 URL 的 fetch 请求，直接将 HTML 作为响应返回
 
-No files are written to disk. No download dialogs.
+不写入磁盘，不弹出下载对话框。
 
-## Installation
+## 安装
 
-1. Clone or download this repository
-2. Open `chrome://extensions`
-3. Enable **Developer mode**
-4. Click **Load unpacked** and select the project folder
+1. 克隆或下载本仓库
+2. 打开 `chrome://extensions`
+3. 启用**开发者模式**
+4. 点击**加载已解压的扩展程序**，选择项目文件夹
 
-## File structure
+## 文件结构
 
 ```
-background.js       # Service worker: fetch interception, HTML injection
-content.js          # Injects preview button into Gemini/AI Studio pages
-content.css         # Button styles
-io-shim.js          # IntersectionObserver patch (fixes hidden sections)
-fixes.css           # Forces sections visible regardless of scroll state
-katex.min.js        # KaTeX math renderer
-katex.min.css       # KaTeX styles
-auto-render.min.js  # KaTeX auto-render (scans DOM for delimiters)
-katex-init.js       # Calls renderMathInElement on page load
-manifest.json       # Extension manifest (MV3)
+background.js       # Service Worker：fetch 拦截、HTML 注入
+content.js          # 向页面注入预览按钮
+content.css         # 按钮样式
+io-shim.js          # IntersectionObserver 补丁（修复隐藏内容）
+fixes.css           # 强制 section 元素始终可见
+katex.min.js        # KaTeX 数学渲染库
+katex.min.css       # KaTeX 样式
+auto-render.min.js  # KaTeX 自动渲染（扫描 DOM 中的公式定界符）
+katex-init.js       # 页面加载后调用 renderMathInElement
+manifest.json       # 扩展清单（MV3）
 ```
 
-## Permissions
+## 权限说明
 
-| Permission | Reason |
+| 权限 | 用途 |
 |---|---|
-| `tabs` | Open preview in a new tab |
-| `host_permissions` (gemini, aistudio) | Inject content script |
+| `tabs` | 在新标签页中打开预览 |
+| `host_permissions`（gemini、aistudio） | 注入内容脚本 |
