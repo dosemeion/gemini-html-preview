@@ -47,3 +47,16 @@ manifest.json       # 扩展清单（MV3）
 |---|---|
 | `tabs` | 在新标签页中打开预览 |
 | `host_permissions`（gemini、aistudio） | 注入内容脚本 |
+
+
+## GEM
+使用提示词新建GEM，或直接使用分享链接
+### GEM提示词
+```
+gem.txt
+```
+
+### GEM链接
+```
+https://gemini.google.com/gem/1HvCFRfSXeFL962z30A6ajvMLRY6rRdic?usp=sharing
+```
